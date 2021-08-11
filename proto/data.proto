@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package data;
+
+message DataTest {
+  optional string source = 1;
+  optional int32 command = 2;
+  optional float action = 3;
+  optional double param = 4;
+  optional string message = 5;
+  optional bool ret = 6;
+};
+
+
