@@ -122,7 +122,7 @@ namespace shm_buffer
 
             void initProducerBuffer()
             {
-                pShareBuffer->current_ready_index.store(-1,std::memory_order_acquire);//-1表示回环缓冲区中未写入数据
+                pShareBuffer->current_ready_index.store(-1,std::memory_order_release);//-1表示回环缓冲区中未写入数据
 
                 for(int i = 0; i < QUEUE_SIZE; i++)
                 {
@@ -137,9 +137,9 @@ namespace shm_buffer
 
             void initConsumerBuffer()
             {
-                if(pShareBuffer->current_ready_index.load(std::memory_order_release) != -1)//说明消费者重启前，生产者已经写入了数据
+                if(pShareBuffer->current_ready_index.load(std::memory_order_acquire) != -1)//说明消费者重启前，生产者已经写入了数据
                 {
-                    int current_ready_index_temp = pShareBuffer->current_ready_index.load(std::memory_order_release);
+                    int current_ready_index_temp = pShareBuffer->current_ready_index.load(std::memory_order_acquire);
 #if 0
 
                     int current_write_index = current_ready_index_temp + 1;//当前正在写的位置是current_ready+1
@@ -151,11 +151,11 @@ namespace shm_buffer
 
                     for(int i = current_write_index; i < QUEUE_SIZE; i++)
                     {
-//                        if(pShareBuffer->shareDataArray[i].ready_flag[access_obj_].load(std::memory_order_release) == StateReadDone)
+//                        if(pShareBuffer->shareDataArray[i].ready_flag[access_obj_].load(std::memory_order_acquire) == StateReadDone)
 //                        {
-//                            pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateReady,std::memory_order_acquire);
+//                            pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateReady,std::memory_order_release);
 //                        }
-                        pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateNULL,std::memory_order_acquire);//将从current_write_index开始之后的全部标志改为StateNULL，因为此时存储的数据均是生产者上一轮写入的，需要丢弃
+                        pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateNULL,std::memory_order_release);//将从current_write_index开始之后的全部标志改为StateNULL，因为此时存储的数据均是生产者上一轮写入的，需要丢弃
                     }
 #endif
                     for(int i = 0; i < QUEUE_SIZE; i++)
@@ -166,7 +166,7 @@ namespace shm_buffer
                         }
                         else
                         {
-                            pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateNULL,std::memory_order_acquire);//将current_ready_index之外的全部标志改为StateNULL
+                            pShareBuffer->shareDataArray[i].ready_flag[access_obj_].store(StateNULL,std::memory_order_release);//将current_ready_index之外的全部标志改为StateNULL
                         }
                     }
 
@@ -185,7 +185,7 @@ namespace shm_buffer
 //添加了回环缓冲功能的producer不需要判定buffer是否可写，有需要时直接写入
 //            bool isReadyToWrite()
 //            {
-//                if((pShareBuffer->shareDataArray[BufferWriteIndex].ready_flag[0].load(std::memory_order_release) == StateReadDone) || (pShareBuffer->ready_flag.load(std::memory_order_release) == StateNULL))
+//                if((pShareBuffer->shareDataArray[BufferWriteIndex].ready_flag[0].load(std::memory_order_acquire) == StateReadDone) || (pShareBuffer->ready_flag.load(std::memory_order_acquire) == StateNULL))
 //                {
 //                    return true;
 //                }
@@ -197,9 +197,9 @@ namespace shm_buffer
 
             bool isReadyToRead()
             {
-//                cout << "current_ready_index: " << pShareBuffer->current_ready_index << " BufferReadIndex: " << BufferReadIndex << " access_obj_: " << (int)access_obj_ << " ready_flag: "<< pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_release) << endl;
+//                cout << "current_ready_index: " << pShareBuffer->current_ready_index << " BufferReadIndex: " << BufferReadIndex << " access_obj_: " << (int)access_obj_ << " ready_flag: "<< pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_acquire) << endl;
 //                cout << "current_ready_index: " << pShareBuffer->current_ready_index << " BufferReadIndex: " << BufferReadIndex << " access_obj_: " << (int)access_obj_ << " ready_read_flag: "<< pShareBuffer->shareDataArray[BufferReadIndex].ready_read_flag[access_obj_] << endl;
-                if(pShareBuffer->current_ready_index.load(std::memory_order_release) != -1)
+                if(pShareBuffer->current_ready_index.load(std::memory_order_acquire) != -1)
                 {
 //                    cout << "before current_ready_index: " << pShareBuffer->current_ready_index << " BufferReadIndex: " << BufferReadIndex << endl;
 
@@ -228,13 +228,13 @@ namespace shm_buffer
 
 //                    cout << "after current_ready_index: " << pShareBuffer->current_ready_index << " BufferReadIndex: " << BufferReadIndex << endl;
 
-//                    if(pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_release) == StateNULL)
+//                    if(pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_acquire) == StateNULL)
 //                    {
 //                        BufferReadIndex = pShareBuffer->current_ready_index;//当在此处判定状态为StateNULL时，说明生产者刚进行了重启，需要将BufferReadIndex设置为最新的current_ready_index
 ////                        return true;
 //                    }
 
-                    if(pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_release) == StateReady)
+                    if(pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].load(std::memory_order_acquire) == StateReady)
 //                    if(pShareBuffer->shareDataArray[BufferReadIndex].ready_read_flag[access_obj_] == StateReady)
                     {
                         return true;
@@ -273,7 +273,7 @@ namespace shm_buffer
 
                 memcpy(pShareBuffer->shareDataArray[BufferWriteIndex].buffer,buffer,size);
                 pShareBuffer->shareDataArray[BufferWriteIndex].buffer_size = size;
-                pShareBuffer->current_ready_index.store(BufferWriteIndex,std::memory_order_acquire);
+                pShareBuffer->current_ready_index.store(BufferWriteIndex,std::memory_order_release);
 
                 changeBufferIOStateALL(BufferWriteIndex,StateReady);
 
@@ -297,7 +297,7 @@ namespace shm_buffer
 
 //                changeBufferIOState(BufferReadIndex,StateReadDone);//注意只能将当前access_obj_对应的ready_flag设置为StateReadDone
 //                pShareBuffer->shareDataArray[BufferReadIndex].ready_read_flag[access_obj_] = StateReadDone;
-                pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].store(StateReadDone,std::memory_order_acquire);
+                pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].store(StateReadDone,std::memory_order_release);
 
                 if(BufferReadIndex >= QUEUE_SIZE - 1)
                 {
@@ -323,7 +323,7 @@ namespace shm_buffer
             {
                 for(int i = 0; i < NUM_BufferObj - 1; i++)
                 {
-                    pShareBuffer->shareDataArray[index].ready_flag[i].store(state,std::memory_order_acquire);
+                    pShareBuffer->shareDataArray[index].ready_flag[i].store(state,std::memory_order_release);
 //                    pShareBuffer->shareDataArray[index].ready_read_flag[i] = state;
                 }
             }
@@ -344,7 +344,7 @@ namespace shm_buffer
 //                        pCallback(pShareBuffer->shareDataArray[BufferReadIndex].buffer,pShareBuffer->shareDataArray[BufferReadIndex].buffer_size);
                         pCallback(&dataPackage);
 //                        changeBufferIOState(BufferReadIndex,StateReadDone);
-                        pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].store(StateReadDone,std::memory_order_acquire);
+                        pShareBuffer->shareDataArray[BufferReadIndex].ready_flag[access_obj_].store(StateReadDone,std::memory_order_release);
 //                        pShareBuffer->shareDataArray[BufferReadIndex].ready_read_flag[access_obj_] = StateReadDone;
 
                         if(BufferReadIndex >= QUEUE_SIZE - 1)

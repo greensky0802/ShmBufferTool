@@ -38,8 +38,6 @@ int main()
             if(count >= 20000)
                 break;
 
-            free(buffer);
-
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     }
